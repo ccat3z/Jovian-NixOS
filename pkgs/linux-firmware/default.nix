@@ -10,5 +10,7 @@ linux-firmware.overrideAttrs(_: rec {
     hash = "sha256-In8mniK2qctvpH2ezFSR4R4yOiWCWhZJH13p4sc+X6M=";
   };
 
-  outputHash = "sha256-Vdvedz87dJYQ5+tzmQZzeo/8zCUJ86/XXexaH7AZRXU=";
+  # FIXME: workaround newer linux-firmware needing `install dedup`
+  # and this linux-firmware being too old to have `dedup`
+  installTargets = [ "install" ];
 })
