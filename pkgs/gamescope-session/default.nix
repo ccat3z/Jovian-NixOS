@@ -5,7 +5,8 @@
   fetchFromGitHub,
   python3,
   steamdeck-hw-theme,
-  steamPackages,
+  steam,
+  steam-unwrapped,
   bash,
   coreutils,
   dbus,
@@ -46,7 +47,7 @@ let
       procps
       steam_notif_daemon
       "${steamos-polkit-helpers}/bin/steamos-polkit-helpers"
-      steamPackages.steam-fhsenv
+      steam
       util-linux
       xbindkeys
     ];
@@ -56,7 +57,7 @@ let
       "cannot:${steamos-polkit-helpers}/bin/steamos-polkit-helpers/steamos-poweroff-now"
       "cannot:${steamos-polkit-helpers}/bin/steamos-polkit-helpers/steamos-reboot-now"
       "cannot:${steamos-polkit-helpers}/bin/steamos-polkit-helpers/steamos-retrigger-automounts"
-      "cannot:${steamPackages.steam-fhsenv}/bin/steam"
+      "cannot:${steam}/bin/steam"
       "cannot:${util-linux}/bin/flock"
       "cannot:${xbindkeys}/bin/xbindkeys"
     ];
@@ -83,7 +84,8 @@ let
 
     prologue = "${writeText "gamescope-session-prologue" ''
       # Don't resholve gamescope so we can use the cap_sys_nice wrapper when available
-      export PATH=/run/wrappers/bin:${gamescope}/bin:$PATH
+      # mangohud is not picked up by resholve due to loop_background
+      export PATH=/run/wrappers/bin:${gamescope}/bin:${mangohud}/bin:$PATH
   
       # Make gamescope discover the Steam cursor theme
       export XCURSOR_PATH=${plasma5Packages.breeze-qt5}/share/icons:${steamdeck-hw-theme}/share/icons
@@ -122,7 +124,7 @@ in stdenv.mkDerivation(finalAttrs: {
 
     substituteInPlace gamescope-session \
       --replace /usr/share ${steamdeck-hw-theme}/share \
-      --replace /usr/lib/steam ${steamPackages.steam}/lib/steam
+      --replace /usr/lib/steam ${steam-unwrapped}/lib/steam
 
     substituteInPlace gamescope-session.service \
       --replace /usr/bin $out/bin
