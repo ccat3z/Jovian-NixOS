@@ -1,44 +1,50 @@
-{ mesa, fetchFromGitHub }:
+{ stdenv, mesa, fetchFromGitHub }:
 let
-  version = "24.1.0";
-  jupiterVersion = "steamos-24.4.0";
-in (mesa.override {
-  galliumDrivers = [];
-  vulkanDrivers = ["amd"];
-  vulkanLayers = [];
-  enableGalliumNine = false;
-  enableOSMesa = false;
-  enableOpenCL = false;
-}).overrideAttrs(old: {
+  version = "24.3.0";
+  jupiterVersion = "steamos-24.11.1";
+in stdenv.mkDerivation {
+  pname = "mesa";
   version = "${version}.${jupiterVersion}";
 
   src = fetchFromGitHub {
     owner = "Jovian-Experiments";
     repo = "mesa";
     rev = jupiterVersion;
-    hash = "sha256-fWtEH8Ln1QZKMa7Y8sLexWyQYhNIuMhIUQPy198Oopg=";
+    hash = "sha256-PvuGRwDW0AwlxdLciDmEj660SQvJCmkG7gTqlTfMDBA=";
   };
 
-  # Clobber all the existing patches
-  patches = [];
+  inherit (mesa) buildInputs nativeBuildInputs propagatedBuildInputs;
 
-  # Filter out nixpkgs disk cache key, we trust vendor here
-  mesonFlags = old.mesonFlags ++ [
-    # Disable all the Gallium stuff that we don't need because no drivers
-    "-Degl=disabled"
-    "-Dglvnd=disabled"
-    "-Dgallium-vdpau=disabled"
-    "-Dgallium-va=disabled"
-    "-Dgallium-xa=disabled"
+  separateDebugInfo = true;
 
-    # Disable libgbm to save space
-    "-Dgbm=disabled"
+  mesonAutoFeatures = "auto";
 
-    # Disable intel-clc to avoid libclc dependency
-    "-Dintel-clc=system"
-    "-Dintel-rt=disabled"
-
-    # Vendor sets this
-    "-Dradv-build-id=64474a6475eb8af2b44ef334793fd58ad89875f6"
+  # See https://github.com/Jovian-Experiments/PKGBUILDs-mirror/blob/jupiter-main/mesa-radv/PKGBUILD
+  mesonFlags = [
+    "-D b_ndebug=true"
+    "-D b_lto=false"
+    "-D platforms=x11,wayland"
+    "-D gallium-drivers="
+    "-D gallium-vdpau=disabled"
+    "-D gallium-va=disabled"
+    "-D gallium-xa=disabled"
+    "-D android-libbacktrace=disabled"
+    "-D vulkan-drivers=amd"
+    "-D vulkan-layers="
+    "-D egl=disabled"
+    "-D gbm=disabled"
+    "-D gles1=disabled"
+    "-D gles2=disabled"
+    "-D glvnd=disabled"
+    "-D glx=disabled"
+    "-D libunwind=enabled"
+    "-D llvm=enabled"
+    "-D lmsensors=disabled"
+    "-D osmesa=false"
+    "-D microsoft-clc=disabled"
+    "-D video-codecs=vc1dec,h264dec,h264enc,h265dec,h265enc"
+    "-D valgrind=enabled"
+    "-D intel-rt=disabled"
+    "-D radv-build-id=4a55c2665669a166cda2a6d60fbce33d8353876d"
   ];
-})
+}
