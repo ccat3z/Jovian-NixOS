@@ -262,7 +262,7 @@ renderdoc-minimal.ignore = true
 rtl88x2ce-dkms.ignore = true
 
 # not used yet
-scx-scheds.check = "1.0.6.linux.neptune.68-1"
+scx-scheds.check = "1.0.7.linux.neptune.68-1"
 
 # FIXME: package this
 steam-im-modules.ignore = true
@@ -287,8 +287,8 @@ steamos-atomupd-client.ignore = true
 
 # applied as NixOS modules instead
 # check both to make sure we get the latest changes
-steamos-customizations-git.check = "20241030.1-1"
-steamos-customizations-jupiter.check = "20241107.1-2"
+steamos-customizations-git.check = "20241211.1-1"
+steamos-customizations-jupiter.check = "20241211.1-1"
 
 # devkit stuff
 steamos-devkit-service.ignore = true
