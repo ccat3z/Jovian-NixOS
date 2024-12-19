@@ -6,6 +6,7 @@
 #  - Pass `'canvas:red[128x64!]'` as the input image.
 #
 
+set -o pipefail
 set -e
 set -u
 PS4=" $ "
@@ -38,7 +39,22 @@ display_rotation=$(
 )
 
 # Gets the "preferred" display resolution
-resolution=$(cat /sys/class/drm/card*-eDP-*/modes | head -n1)
+resolution=$(
+	# This following pipe will more than likely SIGPIPE.
+	# So let's not fail...
+	set +o pipefail
+	# Prevent non-existent files from mucking up the output
+	shopt -s nullglob
+	(
+		# Prefer eDP outputs, or else any DRM output
+		cat /sys/class/drm/card*-eDP-*/modes /sys/class/drm/card*-*-*/modes /dev/null
+		# pipe "nothing" in if `nullglob` fails to glob anything            ^^^^^^^^^
+		# otherwise `cat` will expect to consume `stdin` if given no parameters.
+
+		# If for some reason this fails, fallback on a safe resolution.
+		echo "1920x1080"
+	) | head -n1 # Save only the first match
+)
 
 # The image dimension will be used as our canvas size.
 if [[ "$display_rotation" == "0" || "$display_rotation" == "180" ]]; then
