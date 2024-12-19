@@ -18,6 +18,7 @@ in
         type = types.enum [
           "steamos"
           "jovian"
+          "bgrt"
           "vendor"
         ];
         default = "steamos";
@@ -27,6 +28,8 @@ in
           When `steamos`, this will use the vendor-selected image, scaled appropriately.
 
           When `jovian`, this will use the Jovian Experiments logo, scaled appropriately.
+
+          When `bgrt`, the BGRT (UEFI vendor logo) will be used.
 
           When `vendor`, the vendor default will not be changed. This differs from `default` in that
           on systems other than the Steam Deck, the scaling may not be correct.
@@ -50,6 +53,12 @@ in
           RemainAfterExit = true;
         };
         script = ''
+          # Ignore errors (`set -e` is added helpfully for us)
+          set +e
+
+          # Except we want to fail early still...
+          (
+          set -e
           mkdir -p /run/jovian
 
           ${optionalString (cfg.updater.splash == "steamos") ''
@@ -68,8 +77,15 @@ in
           ${optionalString (cfg.updater.splash == "jovian") ''
             jovian_updater_logo="${../../artwork/logo/splash.png}"
           ''}
+          ${optionalString (cfg.updater.splash == "bgrt") ''
+            jovian_updater_logo="--bgrt"
+          ''}
 
           ${pkgs.jovian-updater-logo-helper}/bin/jovian-updater-logo-helper "$jovian_updater_logo" "/run/jovian/steam-splash.png"
+          )
+
+          # Ensure this always terminates successfully, even if the logo thing failed
+          true
         '';
       };
       environment.etc."xdg/gamescope-session/environment" = {
