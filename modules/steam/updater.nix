@@ -53,6 +53,12 @@ in
           RemainAfterExit = true;
         };
         script = ''
+          # Ignore errors (`set -e` is added helpfully for us)
+          set +e
+
+          # Except we want to fail early still...
+          (
+          set -e
           mkdir -p /run/jovian
 
           ${optionalString (cfg.updater.splash == "steamos") ''
@@ -76,6 +82,10 @@ in
           ''}
 
           ${pkgs.jovian-updater-logo-helper}/bin/jovian-updater-logo-helper "$jovian_updater_logo" "/run/jovian/steam-splash.png"
+          )
+
+          # Ensure this always terminates successfully, even if the logo thing failed
+          true
         '';
       };
       environment.etc."xdg/gamescope-session/environment" = {
