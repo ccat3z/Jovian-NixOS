@@ -58,6 +58,8 @@ python3.pkgs.buildPythonPackage rec {
     "--prefix PATH : ${lib.makeBinPath [ coreutils psmisc ]}"
   ];
 
+  pythonRelaxDeps = [ "watchdog" ];
+
   passthru.python = python3;
 
   meta = with lib; {
