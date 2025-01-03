@@ -27,7 +27,7 @@ in
         user = mkOption {
           type = types.str;
           description = ''
-            The user to run Steam with.
+            The local system user that Steam will be launched as.
           '';
         };
 
