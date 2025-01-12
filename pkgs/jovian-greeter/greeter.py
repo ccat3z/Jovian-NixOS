@@ -17,7 +17,6 @@ from typing import cast, override
 from systemd.journal import JournalHandler
 
 DEFAULT_SESSION = 'gamescope-wayland'
-HELPER_PREFIX = Path('/run/current-system/sw/lib/jovian-greeter')
 
 class Session:
     TYPE: str = 'tty'
@@ -86,15 +85,20 @@ class GreetdClient:
 
         raise RuntimeError('Bad response', response)
 
-    def start_session(self, command: list[str], environment: list[str]):
+    def start_session(self, session: Session):
         try:
             _ = subprocess.check_call(["plymouth", "quit", "--retain-splash", "--wait"])
         except Exception as ex:
             logging.debug("Failed to stop Plymouth", exc_info=ex)
 
-        command = [ 'systemd-cat', '--identifier=jovian-session', '--' ] + command
+        session_command = session.get_command()
+        if not session_command:
+            raise RuntimeError('Session does not have a command')
 
-        logging.info("Starting session '%s'", DEFAULT_SESSION)
+        command = [ 'systemd-cat', '--identifier=jovian-session', '--' ] + session_command
+        environment = session.get_environment()
+
+        logging.info("Starting session '%s'", session.name)
         logging.info("Command: %s", command)
         logging.info("Environment: %s", environment)
         self._send({
@@ -124,9 +128,8 @@ class GreetdClient:
         return cast(dict[str, str], json.loads(payload))
 
 class Context:
-    def __init__(self, user: str, home: Path):
+    def __init__(self, user: str):
         self.user: str = user
-        self.home: Path = home
         self.xdg_data_dirs: list[str] = os.environ.get('XDG_DATA_DIRS', '').split(':')
 
     def next_session(self) -> Session | None:
@@ -138,31 +141,14 @@ class Context:
         return self._find_sessions(sessions)
 
     def _consume_session(self) -> str | None:
-        helper = HELPER_PREFIX.joinpath('consume-session')
-        if helper.exists():
-            logging.debug('Using pkexec helper')
-            res = subprocess.run(
-                ['/run/wrappers/bin/pkexec', helper, self.user],
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                check=True,
-                env={'SHELL': '/bin/sh'}
-            )
-            next_session = res.stdout.decode('utf-8').strip()
-
-            if not next_session:
-                return None
-
-            return next_session
-
-        next_session_file = self.home.joinpath(".local/state/steamos-session-select")
-        if not next_session_file.exists():
-            return None
-
-        with open(next_session_file, 'r') as f:
-            next_session = f.read().strip()
-
-        next_session_file.unlink()
+        res = subprocess.run(
+            ['/run/wrappers/bin/jovian-consume-session'],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=True,
+            env={},
+        )
+        next_session = res.stdout.decode('utf-8').strip()
 
         if not next_session:
             return None
@@ -206,18 +192,13 @@ if __name__ == '__main__':
         sys.exit(1)
 
     user = sys.argv[1]
-    home = os.path.expanduser(f'~{user}/')
     socket_path = os.environ.get('GREETD_SOCK')
-
-    if not home:
-        logging.error(f'Home directory for {user} not found')
-        sys.exit(1)
 
     if not socket_path:
         logging.error("GREETD_SOCK must be set")
         sys.exit(1)
 
-    ctx = Context(user, Path(home))
+    ctx = Context(user)
 
     client = GreetdClient(Path(socket_path))
     client.create_session(user)
@@ -235,4 +216,4 @@ if __name__ == '__main__':
         logging.error(".desktop file doesn't contain Exec=")
         sys.exit(1)
 
-    client.start_session(command, environment)
+    client.start_session(session)
