@@ -11,7 +11,8 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional, Iterable, Mapping, List
+from types import TracebackType
+from typing import cast, override
 
 from systemd.journal import JournalHandler
 
@@ -19,20 +20,20 @@ DEFAULT_SESSION = 'gamescope-wayland'
 HELPER_PREFIX = Path('/run/current-system/sw/lib/jovian-greeter')
 
 class Session:
-    TYPE = 'tty'
+    TYPE: str = 'tty'
 
     def __init__(self, name: str, path: Path):
-        self.name = name
+        self.name: str = name
         with open(path, 'r') as f:
-            self.content = f.read()
+            self.content: str = f.read()
 
-    def get_command(self) -> Optional[List[str]]:
+    def get_command(self) -> list[str] | None:
         if command := self._get_property('Exec'):
             return command.split(' ')
 
         return None
 
-    def get_environment(self) -> List[str]:
+    def get_environment(self) -> list[str]:
         envs = [
             f'XDG_SESSION_TYPE={self.TYPE}',
             f'XDG_SESSION_DESKTOP={self.name}',
@@ -43,19 +44,20 @@ class Session:
 
         return envs
 
-    def _get_property(self, property: str) -> Optional[str]:
+    def _get_property(self, property: str) -> str | None:
         if matches := re.search(f'^{property}=(.*)$', self.content, re.MULTILINE):
             return matches.group(1)
 
         return None
 
 class WaylandSession(Session):
-    TYPE = 'wayland'
+    TYPE: str = 'wayland'
 
 class XSession(Session):
-    TYPE = 'x11'
+    TYPE: str = 'x11'
 
-    def get_command(self) -> Optional[List[str]]:
+    @override
+    def get_command(self) -> list[str] | None:
         if command := super().get_command():
             return [ 'startx', '/usr/bin/env' ] + command
 
@@ -63,7 +65,7 @@ class XSession(Session):
 
 class GreetdClient:
     def __init__(self, path: Path):
-        self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.client: socket.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.client.connect(str(path))
 
     def create_session(self, username: str):
@@ -84,9 +86,9 @@ class GreetdClient:
 
         raise RuntimeError('Bad response', response)
 
-    def start_session(self, command: List[str], environment: List[str]):
+    def start_session(self, command: list[str], environment: list[str]):
         try:
-            subprocess.check_call(["plymouth", "quit", "--retain-splash", "--wait"])
+            _ = subprocess.check_call(["plymouth", "quit", "--retain-splash", "--wait"])
         except Exception as ex:
             logging.debug("Failed to stop Plymouth", exc_info=ex)
 
@@ -110,24 +112,24 @@ class GreetdClient:
 
         raise RuntimeError('Bad response', response)
 
-    def _send(self, data: dict):
+    def _send(self, data: dict[str, str | list[str]]):
         payload = bytes(json.dumps(data), encoding='utf-8')
         self.client.sendall(struct.pack('=I', len(payload)))
         self.client.sendall(payload)
 
-    def _recv(self) -> Mapping[str, Any]:
-        length = self.client.recv(4, socket.MSG_WAITALL)
-        (length,) = struct.unpack('=I', length)
-        payload = self.client.recv(length, socket.MSG_WAITALL)
-        return json.loads(payload)
+    def _recv(self) -> dict[str, str]:
+        length_bytes = self.client.recv(4, socket.MSG_WAITALL)
+        length: tuple[int] = struct.unpack('=I', length_bytes)
+        payload = self.client.recv(length[0], socket.MSG_WAITALL)
+        return cast(dict[str, str], json.loads(payload))
 
 class Context:
     def __init__(self, user: str, home: Path):
-        self.user = user
-        self.home = home
-        self.xdg_data_dirs = os.environ.get('XDG_DATA_DIRS', '').split(':')
+        self.user: str = user
+        self.home: Path = home
+        self.xdg_data_dirs: list[str] = os.environ.get('XDG_DATA_DIRS', '').split(':')
 
-    def next_session(self) -> Optional[Session]:
+    def next_session(self) -> Session | None:
         sessions = [ DEFAULT_SESSION ]
 
         if next_session := self._consume_session():
@@ -135,7 +137,7 @@ class Context:
 
         return self._find_sessions(sessions)
 
-    def _consume_session(self) -> Optional[str]:
+    def _consume_session(self) -> str | None:
         helper = HELPER_PREFIX.joinpath('consume-session')
         if helper.exists():
             logging.debug('Using pkexec helper')
@@ -167,7 +169,7 @@ class Context:
 
         return next_session
 
-    def _find_sessions(self, sessions: Iterable[str]) -> Optional[Session]:
+    def _find_sessions(self, sessions: list[str]) -> Session | None:
         for data_dir in self.xdg_data_dirs + [ '/usr/share' ]:
             data_dir = Path(data_dir)
             for session in sessions:
@@ -183,7 +185,7 @@ class Context:
 
         return None
 
-def handle_exception(exc_type, exc_value, exc_traceback):
+def handle_exception(exc_type: type[Exception], exc_value: Exception, exc_traceback: TracebackType):
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
