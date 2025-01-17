@@ -141,6 +141,7 @@ buildLinux (args // rec {
     DRM_AMD_DC_SI = lib.mkForce (option no);
     DRM_AMD_DC_DCN = lib.mkForce (option no);
     DRM_AMD_DC_HDCP = lib.mkForce (option no);
+    FB_HYPERV = lib.mkForce (option no);
     DRM_HYPERV = lib.mkForce (option no);
     DRM_VMWGFX_FBCON = lib.mkForce (option no);
     KVM_GUEST = lib.mkForce (option no);
