@@ -32,7 +32,7 @@ in
 
     extraEnv.ALSA_CONFIG_UCM2 = "${alsa-ucm-conf'}/share/alsa/ucm2";
   in lib.mkIf cfg.enableSoundSupport {
-    services.pulseaudio.enable = false;
+    hardware.pulseaudio.enable = false;
 
     services.pipewire = {
       enable = true;
